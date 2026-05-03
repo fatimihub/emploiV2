@@ -1,0 +1,205 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/deploy-docs.yml"
+  pull_request:
+    branches: ["main", "master"]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/deploy-docs.yml"
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    name: Build & Release Windows App
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Root Dependencies
+        run: npm install
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Setup Backend Environment
+        run: |
+          node -e "const fs = require('fs'); const path = 'backend/.env'; const examplePath = 'backend/.env-example'; const secret = process.env.JWT_SECRET_KEY; if (!fs.existsSync(path)) { if (fs.existsSync(examplePath)) { fs.copyFileSync(examplePath, path); } else { fs.writeFileSync(path, ''); } } let content = fs.readFileSync(path, 'utf8'); if (content.includes('ACCESS_TOKEN_SECRET=')) { content = content.replace(/^ACCESS_TOKEN_SECRET=.*$/m, 'ACCESS_TOKEN_SECRET=' + secret); } else { content += (content.endsWith('\n') ? '' : '\n') + 'ACCESS_TOKEN_SECRET=' + secret + '\n'; } fs.writeFileSync(path, content);"
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SCRECT_KEY }}
+
+      - name: Rebuild Native Modules (sqlite3)
+        working-directory: ./backend
+        run: npm run rebuild:win
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chrome
+
+      - name: Build and Package Electron App
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Architecture Note: The application uses a Docker-style separated architecture on
+      # Windows. The Express backend is installed as an independent Windows Service,
+      # so electron/main.ts no longer uses utilityProcess.fork(). For CI testing, we set
+      # SKIP_SERVICE_INSTALL=true to trigger the dev/test child_process fallback.
+      - name: Clean Up Hanging Processes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process "Timetable Generator", "node", "electron" -ErrorAction SilentlyContinue | Stop-Process -Force
+          # Also ensure any lingering service from a previous failed run is stopped
+          Get-Service TimetableGeneratorBackend -ErrorAction SilentlyContinue | Stop-Service -Force -ErrorAction SilentlyContinue
+
+      - name: Install Application (Silent - Forced Path)
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist/*.exe | Select-Object -First 1
+          if ($installer) {
+            Write-Host "Installing $($installer.FullName) silently..."
+            Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait
+            Start-Sleep -Seconds 10
+          } else {
+            Write-Error "No installer found in dist/"
+            exit 1
+          }
+
+      - name: Clean Up Hanging Processes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process "Timetable Generator", "node", "electron" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      - name: Verify Installed Application
+        shell: pwsh
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SCRECT_KEY }}
+          IS_TEST: "true"
+          TEST_BUILT_APP: "true"
+          SKIP_SERVICE_INSTALL: "true"
+        run: |
+          # electron-builder NSIS perUser install goes to LOCALAPPDATA\Programs
+          # Handle spaces in path properly
+          $exePath = Join-Path $env:LOCALAPPDATA "Programs\Timetable Generator\Timetable Generator.exe"
+          Write-Host "Verifying installed app at: $exePath"
+
+          if (-not (Test-Path $exePath)) {
+            Write-Host "Not found at primary path. Searching..."
+            # Search common locations with proper quoting
+            $searchPaths = @(
+              (Join-Path $env:LOCALAPPDATA "Programs"),
+              $env:ProgramFiles,
+              ${env:ProgramFiles(x86)}
+            )
+            $found = $null
+            foreach ($sp in $searchPaths) {
+              if (Test-Path $sp) {
+                $found = Get-ChildItem -Path $sp -Filter 'Timetable Generator.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) { break }
+              }
+            }
+            if ($found) {
+              $exePath = $found.FullName
+              Write-Host "Found at: $exePath"
+            } else {
+              Write-Host "--- Listing LOCALAPPDATA\Programs ---"
+              $progPath = Join-Path $env:LOCALAPPDATA "Programs"
+              if (Test-Path $progPath) {
+                Get-ChildItem -Path $progPath -Recurse -Depth 3 -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+              } else {
+                Write-Host "LOCALAPPDATA\Programs does not exist"
+              }
+              Write-Error "Installed executable not found!"
+              exit 1
+            }
+          }
+
+          $env:EXECUTABLE_PATH = $exePath
+          Write-Host "EXECUTABLE_PATH set to: $env:EXECUTABLE_PATH"
+
+          Get-Service TimetableGeneratorBackend -ErrorAction SilentlyContinue | Stop-Service -Force -ErrorAction SilentlyContinue
+          npm run test:e2e:built
+
+      # Artifact uploads disabled due to storage quota
+      # - name: Upload Playwright Report
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: playwright-report
+      #     path: reports/playwright-report/
+      #     retention-days: 7
+
+      - name: Copy Backend Startup Log for Artifact Upload
+        if: always()
+        shell: pwsh
+        run: |
+          # Try ProgramData first (new location), then LOCALAPPDATA (old/fallback location)
+          $logPaths = @(
+            "$env:ProgramData\TimetableGenerator\backend-startup.log",
+            "$env:LOCALAPPDATA\TimetableGenerator\backend-startup.log"
+          )
+          $found = $false
+          foreach ($logPath in $logPaths) {
+            if (Test-Path $logPath) {
+              Copy-Item $logPath -Destination "backend-startup.log" -Force
+              Write-Host "Log file copied from $logPath"
+              $found = $true
+              # Output log content for immediate debugging in CI logs
+              Write-Host "--- LOG CONTENT START ---"
+              Get-Content $logPath -Tail 50
+              Write-Host "--- LOG CONTENT END ---"
+              break
+            }
+          }
+          if (-not $found) {
+            Write-Host "Log file not found in any standard location."
+          }
+
+      # - name: Upload Backend Startup Log
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: backend-startup-log
+      #     path: backend-startup.log
+      #     if-no-files-found: ignore
+
+      - name: Verify Build Output
+        run: ls dist/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        with:
+          files: dist/*.exe
+          tag_name: v${{ github.run_number }}-${{ github.run_attempt }}
+          name: Release v${{ github.run_number }} (Attempt ${{ github.run_attempt }})
+          body: |
+            Automated release build from branch ${{ github.ref_name }}.
+            Commit: ${{ github.sha }}
+          prerelease: false
+          draft: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Upload Artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: Timetable-Generator-Windows
+      #     path: dist/*.exe

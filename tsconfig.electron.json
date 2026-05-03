@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist-electron",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "strict": true,
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["electron/**/*.ts"],
+  "exclude": ["node_modules"]
+}

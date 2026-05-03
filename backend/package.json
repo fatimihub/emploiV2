@@ -1,0 +1,63 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "bin": "index.js",
+  "scripts": {
+    "test": "jest",
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "migrate": "node run-migrations.js",
+    "rebuild": "electron-rebuild -v 30.0.1",
+    "rebuild:win": "electron-rebuild -v 30.0.1 --arch x64 --platform win32 --force",
+    "clean": "rm -rf node_modules package-lock.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "bcryptjs": "^3.0.2",
+    "compression": "^1.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.2",
+    "node-cache": "^5.1.2",
+    "node-windows": "^1.0.0-beta.8",
+    "nodemon": "^3.1.9",
+    "pdfkit": "^0.17.1",
+    "sequelize": "^6.37.6",
+    "sequelize-cli": "^6.6.2",
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
+  },
+  "pkg": {
+    "assets": [
+      "config/config.json",
+      "helpers/transformers/*.js",
+      "controllers/**/*.js",
+      "models/**/*.js",
+      "routes/**/*.js",
+      "migrations/**/*.js",
+      "services/**/*.js",
+      "database/**/*",
+      "uploads/**/*",
+      "run-migrations.js"
+    ]
+  },
+  "devDependencies": {
+    "electron-rebuild": "^3.2.9",
+    "jest": "^30.0.5"
+  },
+  "jest": {
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  }
+}

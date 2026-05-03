@@ -1,0 +1,53 @@
+{
+  "development": {
+    "dialect": "sqlite",
+    "storage": "./database/database.sqlite",
+    "logging": false,
+    "pool": {
+      "max": 5,
+      "min": 0,
+      "acquire": 30000,
+      "idle": 10000
+    },
+    "define": {
+      "timestamps": true
+    },
+    "dialectOptions": {
+      "timeout": 30000
+    }
+  },
+  "test": {
+    "dialect": "sqlite",
+    "storage": "./database/database.sqlite",
+    "logging": false,
+    "pool": {
+      "max": 5,
+      "min": 0,
+      "acquire": 30000,
+      "idle": 10000
+    },
+    "define": {
+      "timestamps": true
+    },
+    "dialectOptions": {
+      "timeout": 30000
+    }
+  },
+  "production": {
+    "dialect": "sqlite",
+    "storage": "./database/database.sqlite",
+    "logging": false,
+    "pool": {
+      "max": 1,
+      "min": 0,
+      "acquire": 60000,
+      "idle": 30000
+    },
+    "define": {
+      "timestamps": true
+    },
+    "dialectOptions": {
+      "timeout": 60000
+    }
+  }
+}

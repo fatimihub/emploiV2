@@ -1,0 +1,113 @@
+/**
+ * Custom styles for the Timetable Generator Documentation
+ */
+
+:root {
+  --vp-home-hero-image-filter: drop-shadow(0 0 60px rgba(100, 108, 255, 0.2));
+}
+
+@media (min-width: 960px) {
+  .VPHomeHero .container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 96px 0 64px !important;
+    max-width: 100% !important;
+  }
+  .VPHomeHero .main {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 1000px !important;
+  }
+  .VPHomeHero .name,
+  .VPHomeHero .text,
+  .VPHomeHero .tagline {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .VPHomeHero .actions {
+    justify-content: center !important;
+    display: flex !important;
+    width: 100% !important;
+  }
+}
+
+/* Custom Download Section styling */
+.download-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 4rem 2rem;
+  margin: 3rem auto;
+  max-width: 1152px;
+  background: var(--vp-c-bg-soft);
+  border-radius: 16px;
+  align-items: center;
+}
+
+@media (min-width: 960px) {
+  .download-container {
+    flex-direction: row;
+    padding: 4rem;
+    text-align: left;
+  }
+  .download-image {
+    flex: 1.2; /* Give more space to the image */
+    max-width: 60%;
+  }
+  .download-content {
+    flex: 0.8;
+    padding-left: 2rem;
+  }
+}
+
+.download-image img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  /* Shadow removed as requested */
+  transition: transform 0.3s ease;
+}
+
+.download-image img:hover {
+  transform: translateY(-5px);
+}
+
+.download-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--vp-c-text-1);
+}
+
+.download-content p {
+  color: var(--vp-c-text-2);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+/* Big Green Professional Download Button */
+.btn-download {
+  display: inline-block;
+  background-color: #10b981 !important; /* Green emerald */
+  color: white !important;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: background-color 0.2s, transform 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.btn-download:hover {
+  background-color: #059669 !important;
+  transform: scale(1.05);
+  text-decoration: none !important;
+}
+
+.btn-download:active {
+  transform: scale(0.98);
+}
